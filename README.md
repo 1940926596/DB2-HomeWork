@@ -1,6 +1,6 @@
 # DB2-HomeWork
 
 # 测试结果
-![image](results/1.png)
-![image](results/2.png)
-![image](results/3.png)
+![image](1.png)
+![image](2.png)
+![image](3.png)
