@@ -16,7 +16,7 @@
 #include "logging/log_manager.h"
 #include "page/page.h"
 
-namespace cmudb {
+namespace scudb {
 class BufferPoolManager {
 public:
   BufferPoolManager(size_t pool_size, DiskManager *disk_manager,
@@ -40,7 +40,9 @@ private:
   DiskManager *disk_manager_;
   LogManager *log_manager_;
   HashTable<page_id_t, Page *> *page_table_; // to keep track of pages
+  //找到unpinned界面做替换
   Replacer<Page *> *replacer_;   // to find an unpinned page for replacement
+  //找到空界面做替换
   std::list<Page *> *free_list_; // to find a free page for replacement
   std::mutex latch_;             // to protect shared data structure
   Page *GetVictimPage();

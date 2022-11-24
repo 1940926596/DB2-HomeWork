@@ -16,7 +16,7 @@
 #include "buffer/replacer.h"
 
 using namespace std;
-namespace cmudb {
+namespace scudb {
 
 template <typename T> class LRUReplacer : public Replacer<T> {
   struct Node {

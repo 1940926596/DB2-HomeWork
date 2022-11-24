@@ -4,7 +4,7 @@
 #include "buffer/lru_replacer.h"
 #include "page/page.h"
 
-namespace cmudb {
+namespace scudb {
 
 template <typename T> LRUReplacer<T>::LRUReplacer() {
   head = make_shared<Node>();
@@ -22,7 +22,7 @@ template <typename T> void LRUReplacer<T>::Insert(const T &value) {
   lock_guard<mutex> lck(latch);
   shared_ptr<Node> cur;
   if (map.find(value) != map.end()) {
-    //如果存在value值的节点，将该节点直接删除
+    //如果存在value值的节点，将该节点直接移除map
     cur = map[value];
     shared_ptr<Node> prev = cur->prev;
     shared_ptr<Node> succ = cur->next;
@@ -54,6 +54,7 @@ template <typename T> bool LRUReplacer<T>::Victim(T &value) {
   tail->prev = last->prev;
   last->prev->next = tail;
   value = last->val;
+  //将最后一个Node移除
   map.erase(last->val);
   return true;
 }
@@ -63,13 +64,14 @@ template <typename T> bool LRUReplacer<T>::Victim(T &value) {
  * return false
  */
 template <typename T> bool LRUReplacer<T>::Erase(const T &value) {
-  //删除指定元素的Node
+  //删除指定元素的Node（value）
   lock_guard<mutex> lck(latch);
   if (map.find(value) != map.end()) {
     shared_ptr<Node> cur = map[value];
     cur->prev->next = cur->next;
     cur->next->prev = cur->prev;
   }
+  //返回是否删除成功
   return map.erase(value);
 }
 

@@ -1,6 +1,6 @@
 #include "buffer/buffer_pool_manager.h"
 
-namespace cmudb {
+namespace scudb {
 
 /*
  * BufferPoolManager Constructor
@@ -14,13 +14,20 @@ BufferPoolManager::BufferPoolManager(size_t pool_size,
     : pool_size_(pool_size), disk_manager_(disk_manager),
       log_manager_(log_manager) {
   // a consecutive memory space for buffer pool
+  //在缓冲池中创建pages指针指向缓冲池Page
+  //创建数量为pool_size_的Page
   pages_ = new Page[pool_size_];
+  //创建一个hashTable,map<page_id,*Page>(table装的是page_id映射的Page)
+  //HashTable装的是page_id和Page的地址（父指针指向子对象）
   page_table_ = new ExtendibleHash<page_id_t, Page *>(BUCKET_SIZE);
+  //替换界面LRU  map<*Page,Node(*Page)>
   replacer_ = new LRUReplacer<Page *>;
+  //空闲指针列表
   free_list_ = new std::list<Page *>;
 
   // put all the pages into free list
   for (size_t i = 0; i < pool_size_; ++i) {
+    //所有的初始界面指针空闲列表中
     free_list_->push_back(&pages_[i]);
   }
 }
@@ -56,15 +63,16 @@ Page *BufferPoolManager::FetchPage(page_id_t page_id) {
   //如果找到该Page，直接返回该Page
   if (page_table_->Find(page_id,tar)) { //1.1
     tar->pin_count_++;
+    //从替换列表中移除
     replacer_->Erase(tar);
     return tar;
   }
   //1.2
-  //如果不存在该Page直接返回
+  //先在freelist找是否有空闲页面，再找lru是否能替换
   tar = GetVictimPage();
   if (tar == nullptr) return tar;
   //2
-  //如果要替换的是脏页，则迅速写回外存
+  //如果找到的页面是脏页，则迅速写回外存
   if (tar->is_dirty_) {
     disk_manager_->WritePage(tar->GetPageId(),tar->data_);
   }
@@ -90,7 +98,7 @@ Page *BufferPoolManager::FetchPage(page_id_t page_id) {
  * replacer if pin_count<=0 before this call, return false. is_dirty: set the
  * dirty flag of this page
  */
-//解除Page的Pin
+//使用完页面后，解除Page的Pin
 bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
   lock_guard<mutex> lck(latch_);
   Page *tar = nullptr;
@@ -99,6 +107,7 @@ bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
     return false;
   }
   tar->is_dirty_ = is_dirty;
+  //如果pinCount==0，那么并没有使用此页面
   if (tar->GetPinCount() <= 0) {
     return false;
   }
@@ -154,6 +163,7 @@ bool BufferPoolManager::DeletePage(page_id_t page_id) {
         replacer_->Erase(tar);
         //将此页面从pagetable中删除
         page_table_->Remove(page_id);
+        //脏页位置位false
         tar->is_dirty_ = false;
         //将此页面数据清空
         tar->ResetMemory();
@@ -176,9 +186,10 @@ bool BufferPoolManager::DeletePage(page_id_t page_id) {
 Page *BufferPoolManager::NewPage(page_id_t &page_id) {
   lock_guard<mutex> lck(latch_);
   Page *tar = nullptr;
+  //找page可以放的位置
   tar = GetVictimPage();
   if (tar == nullptr) return tar;
-
+  //创建页面
   page_id = disk_manager_->AllocatePage();
   //2
   if (tar->is_dirty_) {
@@ -187,9 +198,9 @@ Page *BufferPoolManager::NewPage(page_id_t &page_id) {
   //3
   page_table_->Remove(tar->GetPageId());
   page_table_->Insert(page_id,tar);
-
   //4
   tar->page_id_ = page_id;
+  //清空Page的数据
   tar->ResetMemory();
   tar->is_dirty_ = false;
   tar->pin_count_ = 1;

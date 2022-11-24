@@ -20,7 +20,7 @@
 using namespace std;
 
 
-namespace cmudb {
+namespace scudb {
 
 
 template <typename K, typename V>

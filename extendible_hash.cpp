@@ -66,7 +66,7 @@ int ExtendibleHash<K, V>::GetNumBuckets() const{
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
-
+//
   int idx = getIdx(key);
   lock_guard<mutex> lck(buckets[idx]->latch);
   if (buckets[idx]->kmap.find(key) != buckets[idx]->kmap.end()) {
